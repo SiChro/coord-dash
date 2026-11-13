@@ -1,0 +1,10 @@
+# gitleaks config: default rules plus one documented false positive.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Vendored minified xterm.js: the code 't.FourKeyMap=t.TwoKeyMap' matches generic-api-key"
+regexTarget = "match"
+regexes = ['''FourKeyMap=t\.TwoKeyMap''']
+paths = ['''public/vendor/xterm\.js$''']
+condition = "AND"

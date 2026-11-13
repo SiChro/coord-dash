@@ -1,0 +1,13 @@
+{
+  "name": "coord-dash",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Phone-friendly browser dashboard for Claude Code sessions running in tmux: watch them live, type messages, send keys. No server dependencies.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server.js", "setup": "node setup.js", "test": "node --test test/*.test.js", "test:browser": "node --test --test-concurrency=1 test/browser.test.mjs" },
+  "license": "AGPL-3.0-only",
+  "author": "Simon Chromec",
+  "repository": { "type": "git", "url": "git+https://github.com/SiChro/coord-dash.git" },
+  "keywords": ["tmux", "claude-code", "dashboard", "terminal", "tailscale"]
+}

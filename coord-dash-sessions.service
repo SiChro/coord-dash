@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Simon Chromec
+# systemd *user* unit (optional): start the tmux sessions in ~/.config/coord-dash/sessions at
+# boot. Installed by the README step that replaces @DIR@ with the checkout's path.
+[Unit]
+Description=coord-dash: start tmux sessions
+After=default.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh @DIR@/scripts/start-sessions.sh
+# Never kill the tmux server (and your agents) when this unit is stopped or restarted.
+KillMode=process
+
+[Install]
+WantedBy=default.target

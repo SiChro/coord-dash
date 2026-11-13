@@ -1,0 +1,101 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-only · Copyright (C) 2026 Simon Chromec -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+<title>coord-dash</title>
+<link rel="icon" href="/icon.svg">
+<link rel="stylesheet" href="/vendor/xterm.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <strong>coord-dash</strong>
+  <span class="spacer"></span>
+  <select id="add" aria-label="Add a tmux session"><option value="">+ add session…</option></select>
+  <button id="logout" type="button">Log out</button>
+</header>
+<!-- Phone only: one panel at a time; the tab shown is the one the key bar targets. -->
+<nav id="tabs" role="tablist" aria-label="Sessions" hidden></nav>
+<main id="grid"></main>
+
+<template id="panel-tpl">
+  <section class="panel">
+    <div class="bar">
+      <span class="dot"></span><span class="name"></span><span class="state"></span>
+      <span class="spacer"></span>
+      <button type="button" class="hist" title="Scrollback history">History</button>
+      <button type="button" class="max" title="Maximize this panel" aria-pressed="false" aria-label="Maximize">⤢</button>
+      <button type="button" class="close" title="Hide this panel">✕</button>
+    </div>
+    <div class="screen"><div class="term"></div><button type="button" class="live" hidden>↓ Live</button></div>
+    <form class="input">
+      <textarea rows="2" placeholder="Message… (Enter sends, Shift+Enter = new line)"></textarea>
+      <div class="row">
+        <label class="chk"><input type="checkbox" class="enter" checked> + Enter</label>
+        <span class="spacer"></span>
+        <button type="submit" class="primary">Send</button>
+      </div>
+    </form>
+  </section>
+</template>
+
+<!-- Keys go to the active panel (last one tapped, outlined). -->
+<nav id="keybar" aria-label="Keys">
+  <div id="toast" role="status" hidden></div>
+  <div class="ktarget">Keys → <span>(no panel)</span></div>
+  <div class="krow k5">
+    <button type="button" data-key="Left" data-label="Left" title="Arrow left">←</button>
+    <button type="button" data-key="Up" data-label="Up" title="Arrow up">↑</button>
+    <button type="button" data-key="Down" data-label="Down" title="Arrow down">↓</button>
+    <button type="button" data-key="Right" data-label="Right" title="Arrow right">→</button>
+    <button type="button" data-key="Enter" data-label="Enter" title="Press Enter">Enter</button>
+  </div>
+  <div class="krow k5">
+    <button type="button" data-key="Escape" data-label="Esc" data-confirm="1" class="warn" title="Esc (interrupts Claude)">Esc</button>
+    <button type="button" data-key="BTab" data-label="mode (Shift+Tab)" data-confirm="1" class="warn" title="Shift+Tab (cycles permission mode)">mode</button>
+    <button type="button" data-key="C-c" data-label="Stop (Ctrl+C)" data-confirm="1" class="warn" title="Ctrl+C">Stop</button>
+    <button type="button" id="copy" title="Copy the selection, or the whole visible screen (browser only, nothing goes to tmux)">Copy</button>
+    <button type="button" id="ctrl-open" aria-haspopup="dialog" title="More keys">☰ Ctrl</button>
+  </div>
+</nav>
+
+<div id="sheet" hidden>
+  <div class="sheet-back"></div>
+  <div class="sheet-body" role="dialog" aria-label="Ctrl keys">
+    <div class="sheet-head"><strong>Keys → <span class="target"></span></strong><span class="spacer"></span><button type="button" class="sheet-close" aria-label="Close">✕</button></div>
+    <section class="recent-sec" hidden><h3>Recent</h3><div class="items" id="recent"></div></section>
+    <section><h3>Run</h3><div class="items">
+      <button type="button" data-key="C-b" data-label="Background task"><span>Background task</span><kbd>Ctrl+B</kbd></button>
+      <button type="button" data-key="C-x C-s" data-label="Send queued now"><span>Send queued now</span><kbd>Ctrl+X Ctrl+S</kbd></button>
+      <button type="button" data-key="Escape Escape" data-label="Rewind" data-confirm="1" class="warn"><span>Rewind</span><kbd>Esc Esc</kbd></button>
+      <button type="button" data-key="C-x C-k C-x C-k" data-label="Stop subagents" data-confirm="1" class="warn"><span>Stop subagents</span><kbd>Ctrl+X Ctrl+K ×2</kbd></button>
+    </div></section>
+    <section><h3>View</h3><div class="items">
+      <button type="button" data-key="C-o" data-label="Transcript"><span>Transcript</span><kbd>Ctrl+O</kbd></button>
+      <button type="button" data-key="C-t" data-label="Task list"><span>Task list</span><kbd>Ctrl+T</kbd></button>
+      <button type="button" data-key="C-r" data-label="History search"><span>History search</span><kbd>Ctrl+R</kbd></button>
+      <button type="button" data-key="C-l" data-label="Redraw"><span>Redraw</span><kbd>Ctrl+L</kbd></button>
+    </div></section>
+    <section><h3>Prompt</h3><div class="items">
+      <button type="button" data-key="C-s" data-label="Stash/restore"><span>Stash/restore</span><kbd>Ctrl+S</kbd></button>
+      <button type="button" data-key="C-j" data-label="New line"><span>New line</span><kbd>Ctrl+J</kbd></button>
+      <button type="button" data-key="C-_" data-label="Undo edit"><span>Undo edit</span><kbd>Ctrl+_</kbd></button>
+      <button type="button" data-key="C-w" data-label="Delete word"><span>Delete word</span><kbd>Ctrl+W</kbd></button>
+      <button type="button" data-key="C-u" data-label="Clear line"><span>Clear line</span><kbd>Ctrl+U</kbd></button>
+    </div></section>
+  </div>
+</div>
+
+<div id="history" class="overlay" hidden>
+  <div class="bar"><strong class="title"></strong><span class="spacer"></span><button type="button" class="close">Close</button></div>
+  <div class="hterm"></div>
+</div>
+
+<script src="/vendor/xterm.js"></script>
+<script src="/vendor/addon-unicode11.js"></script>
+<script src="/lib.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+# coord-dash: tmux sessions to start at boot (scripts/start-sessions.sh).
+# Copy to ~/.config/coord-dash/sessions and edit. One session per line:
+#   name | working directory | command typed into the session's shell
+# Names: A-Z a-z 0-9 _ - only. The command is optional (empty = just a shell).
+coordinator | ~/projects/my-app | claude
+worker      | ~/projects/my-app |

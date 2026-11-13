@@ -1,0 +1,7 @@
+{
+  "playwrightCore": "playwright-core",
+  "chrome": null,
+  "libDir": null,
+  "fontsConf": null,
+  "port": 7699
+}

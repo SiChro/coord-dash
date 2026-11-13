@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-only · Copyright (C) 2026 Simon Chromec -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>coord-dash · login</title>
+<link rel="icon" href="/icon.svg">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="login">
+<form id="login" autocomplete="on">
+  <h1>coord-dash</h1>
+  <input type="text" name="username" value="coord-dash" autocomplete="username" hidden>
+  <label>Password <input id="pw" type="password" autocomplete="current-password" required autofocus></label>
+  <button type="submit">Log in</button>
+  <p id="err" class="err" role="alert"></p>
+</form>
+<script src="/login.js"></script>
+</body>
+</html>

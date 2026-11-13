@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Simon Chromec
+# systemd *user* unit. Installed by the README step that replaces @NODE@ and @DIR@ (see README).
+[Unit]
+Description=coord-dash: browser view of tmux coordinator sessions
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@DIR@
+ExecStart=@NODE@ @DIR@/server.js
+Environment=LANG=C.UTF-8
+Environment=NODE_ENV=production
+Restart=on-failure
+RestartSec=3
+# Keep the dashboard a low-priority background service. Adjust or remove these limits
+# to suit your machine (watching many sessions at once may need more memory).
+Nice=10
+MemoryMax=200M
+CPUQuota=25%
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

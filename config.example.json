@@ -1,0 +1,10 @@
+{
+  "host": "127.0.0.1",
+  "port": 7681,
+  "sessions": ["my-coordinator", "my-worker"],
+  "pollMs": 500,
+  "allowedTailscaleLogins": [],
+  "tmuxSocket": null,
+  "passwordHash": "written by: node setup.js",
+  "cookieSecret": "written by: node setup.js"
+}

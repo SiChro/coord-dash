@@ -1,0 +1,160 @@
+/* SPDX-License-Identifier: AGPL-3.0-only
+   Copyright (C) 2026 Simon Chromec */
+:root {
+  --bg: #0b0d11;
+  --panel: #16181d;
+  --line: #2a2e37;
+  --text: #d7dae0;
+  --muted: #8a909c;
+  --ok: #7dd3a8;
+  --warn: #f0b45c;
+  --bad: #ef6b6b;
+  --accent: #5b9cf5;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button, select {
+  background: #222631; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; min-height: 32px;
+}
+button:hover { border-color: #3d4350; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.warn { color: var(--warn); }
+.spacer { flex: 1; }
+
+header strong { white-space: nowrap; }
+header { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+
+/* Page = flex column: header, panel area (scrolls on its own), key bar in normal flow.
+   --app-h follows window.visualViewport, so the bar sits on top of the phone keyboard. */
+body:not(.login) { display: flex; flex-direction: column; height: var(--app-h, 100dvh); overflow: hidden; }
+header { flex: none; min-width: 0; }
+#add { min-width: 0; flex: 0 1 auto; max-width: 11em; text-overflow: ellipsis; }
+/* Panel area: rows of panels (.prow) with dividers, filling the space down to the key bar.
+   Row heights and panel widths are set inline by app.js (flex-grow = saved fractions,
+   min-width/min-height = 20 columns × 6 rows). If the minimums don't fit, the area scrolls. */
+#grid { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; padding: 12px 16px; }
+.prow { display: flex; flex: 1 1 0; min-height: 0; }
+.prow > .panel { flex: 1 1 0; }
+#grid.maxed > .prow:not(.has-max), #grid.maxed > .divider, #grid.maxed .prow > .divider,
+#grid.maxed .panel:not(.maxed) { display: none; }
+#grid.maxed > .prow.has-max, #grid.maxed .panel.maxed { flex: 1 1 0 !important; }
+
+/* Dividers: 12 px grab area, a thin line in the middle that lights up on hover/drag. */
+.divider { flex: none; position: relative; touch-action: none; }
+.divider.v { width: 12px; cursor: col-resize; }
+.divider.h { height: 12px; cursor: row-resize; }
+.divider::after { content: ""; position: absolute; border-radius: 2px; background: var(--line); transition: background .1s; }
+.divider.v::after { left: 5px; width: 2px; top: 25%; bottom: 25%; }
+.divider.h::after { top: 5px; height: 2px; left: 25%; right: 25%; }
+.divider:hover::after, .divider.drag::after { background: var(--accent); }
+body.dragging { user-select: none; -webkit-user-select: none; }
+body.drag-v, body.drag-v * { cursor: col-resize !important; }
+body.drag-h, body.drag-h * { cursor: row-resize !important; }
+
+/* Phone: one panel (the targeted one) fills the area; tabs above choose it. */
+#grid.phone > .panel { flex: 1 1 0; min-height: 0; }
+#grid.phone > .panel:not(.active) { display: none; }
+#grid.phone .max { display: none; }
+#tabs { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 6px 8px 0; scrollbar-width: none; }
+#tabs[hidden] { display: none; }
+#tabs button { flex: none; min-height: 40px; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tabs button[aria-selected="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+/* Hidden terminal used to measure the cell size at the base font. */
+.probe { position: fixed; left: -10000px; top: 0; visibility: hidden; pointer-events: none; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0;
+  display: flex; flex-direction: column;
+}
+.bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); flex: none; min-width: 0; }
+.bar .name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar button { flex: none; }
+.max[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.bar .state { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.panel[data-state="live"] .dot { background: var(--ok); }
+.panel[data-state="down"] .dot { background: var(--warn); }
+.panel[data-state="gone"] .dot { background: var(--bad); }
+
+.screen { background: #0f1115; overflow: hidden; position: relative; flex: 1 1 0; min-height: 0; }
+.screen.pan { overflow-x: auto; }
+/* No transform/zoom on the terminal: xterm maps mouse positions with its own cell size,
+   so any CSS scaling shifts selections. Fitting is done with the font size instead. */
+.term { width: max-content; }
+/* Room for an always-visible scrollbar to the right of the text (the viewport spans the padding). */
+.term .xterm { padding-right: 14px; }
+.term .xterm-viewport { overflow-y: scroll; background: transparent !important; }
+.term .xterm-viewport::-webkit-scrollbar { width: 14px; }
+.term .xterm-viewport::-webkit-scrollbar-track { background: #1a1d24; }
+.term .xterm-viewport::-webkit-scrollbar-thumb { background: #4a5160; border-radius: 7px; border: 3px solid #1a1d24; min-height: 30px; }
+.term .xterm-viewport::-webkit-scrollbar-thumb:hover { background: #6b7385; }
+@supports not selector(::-webkit-scrollbar) {
+  .term .xterm-viewport { scrollbar-color: #4a5160 #1a1d24; }
+}
+.live {
+  position: absolute; right: 24px; bottom: 10px; z-index: 5;
+  background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.5);
+}
+.live[hidden] { display: none; }
+
+.input { padding: 8px 10px; border-top: 1px solid var(--line); display: grid; gap: 6px; flex: none; }
+.input textarea {
+  width: 100%; resize: vertical; min-height: 44px; background: #0f1115; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+}
+.input .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.chk { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 4px; }
+
+.overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; z-index: 10; }
+.overlay[hidden] { display: none; }
+.hterm { flex: 1; overflow: auto; padding: 4px; background: #0f1115; }
+
+body.login { display: grid; place-items: center; padding: 16px; }
+#login { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 24px; width: min(100%, 340px); display: grid; gap: 12px; }
+#login h1 { margin: 0; font-size: 20px; }
+#login label { display: grid; gap: 4px; color: var(--muted); }
+#login input { background: #0f1115; border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.err { color: var(--bad); margin: 0; min-height: 1em; }
+
+/* Fixed key bar (2 rows) + ☰ Ctrl bottom sheet. Keys go to the outlined (active) panel. */
+.panel.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+#keybar {
+  flex: none; position: relative; display: grid; gap: 6px;
+  padding: 4px 8px calc(6px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--line);
+}
+.ktarget { max-width: 640px; width: 100%; margin: 0 auto; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ktarget span { color: var(--accent); font-weight: 600; }
+.krow { display: grid; gap: 6px; max-width: 640px; width: 100%; margin: 0 auto; }
+.krow.k5 { grid-template-columns: repeat(5, 1fr); }
+#toast {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 9;
+  background: var(--accent); color: #fff; padding: 6px 14px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.5); pointer-events: none;
+}
+#toast[hidden] { display: none; }
+#keybar button, #sheet .items button, #sheet .sheet-close { min-height: 44px; min-width: 44px; padding: 4px 6px; touch-action: manipulation; }
+#keybar .k5 button:not(:last-child) { font-size: 18px; }
+
+#sheet { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; justify-content: flex-end; }
+#sheet[hidden] { display: none; }
+.sheet-back { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.sheet-body {
+  position: relative; max-height: 85vh; overflow-y: auto; background: var(--panel); border-top: 1px solid var(--line);
+  border-radius: 14px 14px 0 0; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); width: 100%; max-width: 640px; margin: 0 auto;
+}
+.sheet-head { display: flex; align-items: center; gap: 8px; position: sticky; top: -8px; background: var(--panel); padding: 4px 0; }
+.sheet-head .target { color: var(--accent); }
+#sheet h3 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+#sheet .items { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#sheet .items button { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; }
+#sheet kbd { font: 11px ui-monospace, Menlo, monospace; color: var(--muted); }
+#sheet .warn span { color: var(--warn); }
+
+@media (max-width: 600px) {
+  header { padding-left: 16px; padding-right: 16px; }
+  #grid { padding: 6px 8px 8px; }
+  .input .row button { min-width: 44px; min-height: 44px; padding: 4px 8px; }
+  .input textarea { font-size: 16px; } /* below 16 px iOS Safari zooms in on focus */
+}

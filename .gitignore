@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# local configuration and secrets (commit only the *.example.json versions)
+config.json
+test/browser.config.json
+.env
+.env.*
+
+# logs, backups, scratch
+logs/
+*.log
+backups/
+*.bak
+*.bak-*
+*.orig
+.DS_Store
+# local scratch tests
+test/zz-*
