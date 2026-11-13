@@ -57,6 +57,7 @@ const baseFont = () => (wide.matches ? FONT.wide : FONT.phone);
 const SCROLLBAR = 14; // room right of the text for the scrollbar (.term .xterm padding-right)
 const DIVIDER = 12; // px: grab area between panels
 const COL_PX = 480; // a row holds as many panels side by side as fit at this width
+const USER_SCROLL_MS = 1000; // scroll events this soon after wheel/touch/drag input are the user's
 let fontsReady = false;
 
 // ---------------------------------------------------------------- terminal size
@@ -223,10 +224,7 @@ function buildLayout() {
   }
   // Moving an element resets its scroll position, and xterm would follow its viewport to the
   // top of the scrollback: put every terminal back where it was (at the bottom = stay live).
-  const keep = [...panels.values()].map((p) => {
-    const b = p.term.buffer.active;
-    return [p, b.viewportY >= b.baseY ? null : b.viewportY];
-  });
+  const keep = [...panels.values()].map((p) => [p, p.live ? null : p.term.buffer.active.viewportY]);
   grid.replaceChildren(...kids);
   applySizes();
   requestAnimationFrame(() => {
@@ -367,8 +365,8 @@ function setState(p, cls, text) {
 // xterm keeps the viewport where it is while you're scrolled up.
 function render(p, f) {
   const t = p.term;
-  const b = t.buffer.active;
-  const follow = f.reset || b.viewportY >= b.baseY; // live view, not scrolled up by the user
+  if (f.reset) p.live = true;
+  const follow = p.live; // live view, not scrolled up by the user (see watchScroll)
   if (f.reset) t.reset();
   p.tmux = { cols: f.cols, rows: f.rows };
   const resized = t.cols !== f.cols || t.rows !== f.rows;
@@ -382,8 +380,8 @@ function render(p, f) {
     `\x1b[0m\x1b[${f.cy + 1};${f.cx + 1}H` + (f.cursor ? '\x1b[?25h' : '\x1b[?25l');
   t.write(out, () => {
     if (resized || f.reset || !p.fitted) { fit(p); p.fitted = true; }
+    if (follow) t.scrollToBottom();
     if (follow && (f.reset || resized)) {
-      t.scrollToBottom();
       // A reset or resize changes the scroll area; the browser may clamp the viewport's
       // scrollTop and fire a late scroll event that xterm takes for the user scrolling to the
       // top. Scroll to the bottom again once that has happened.
@@ -399,8 +397,34 @@ function render(p, f) {
 }
 
 function updateLive(p) {
-  const b = p.term.buffer.active;
-  p.liveBtn.hidden = b.viewportY >= b.baseY;
+  p.liveBtn.hidden = p.live;
+}
+
+// p.live: the panel follows the live screen. Only the user can turn that off, by scrolling up
+// with the wheel, touch or the scrollbar. xterm's viewport also moves without the user: a
+// resize or a font change (fit() while a divider is dragged) changes the scroll area, and the
+// browser fires a late scroll event that xterm takes for a scroll. Judged by the viewport alone,
+// that froze a panel showing old rows with the new screen below. So a scroll event counts as
+// the user's only shortly after their input; any other scroll of a live panel is undone.
+function watchScroll(p) {
+  const input = () => { p.userAt = performance.now(); };
+  p.termEl.addEventListener('wheel', input, { passive: true });
+  p.termEl.addEventListener('touchmove', input, { passive: true });
+  p.termEl.addEventListener('touchend', input, { passive: true }); // momentum scrolling follows
+  p.termEl.addEventListener('pointermove', (e) => { if (e.buttons) input(); }, { passive: true });
+  const onScroll = () => {
+    const b = p.term.buffer.active;
+    const bottom = b.viewportY >= b.baseY;
+    if (performance.now() - p.userAt < USER_SCROLL_MS) {
+      p.live = bottom;
+    } else if (p.live && !bottom) {
+      p.term.scrollToBottom();
+    }
+    updateLive(p);
+  };
+  p.term.onScroll(onScroll);
+  p.termEl.querySelector('.xterm-viewport').addEventListener('scroll', onScroll, { passive: true });
+  p.liveBtn.addEventListener('click', () => { p.live = true; p.term.scrollToBottom(); updateLive(p); });
 }
 
 function connect(p) {
@@ -433,6 +457,7 @@ function addPanel(name) {
     term: makeTerm({ cols: 80, rows: 24, fontSize: baseFont() }),
     es: null,
     fitted: false,
+    live: true, userAt: -1e9, // following the live screen; time of the last scroll input (watchScroll)
     tmux: null, // size of the last frame: the real tmux window size
     pending: null, busy: false, timer: 0, lastSent: 0, sent: null, closed: false, observer: null, // resize requests (requestResize)
   };
@@ -440,9 +465,7 @@ function addPanel(name) {
   el.querySelector('.name').textContent = name;
   grid.append(el); // measured in place; buildLayout() moves it into its row
   p.term.open(p.termEl);
-  p.term.onScroll(() => updateLive(p));
-  p.termEl.querySelector('.xterm-viewport').addEventListener('scroll', () => updateLive(p), { passive: true });
-  p.liveBtn.addEventListener('click', () => { p.term.scrollToBottom(); updateLive(p); });
+  watchScroll(p);
   panels.set(name, p);
   store.set([...panels.keys()]);
   // Load, window resize, divider drag, maximize, tab switch, message box resize: all of them

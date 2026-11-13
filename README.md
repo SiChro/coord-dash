@@ -234,7 +234,9 @@ resize), and Copy without a selection copies the visible screen. At 2560 px with
 each terminal is wider than 80 columns, tmux has exactly the panel's size, and the screen is
 redrawn without wrapping; dragging a divider resizes tmux while dragging and on release, stops at
 20 columns, double-click resets; maximize and restore; the layout survives a reload. Stacked at
-900 px: touch drag and double-tap on the row divider. Phone: tabs, one panel at a time.
+900 px: touch drag and double-tap on the row divider. Phone: tabs, one panel at a time. Scrolling:
+a scroll the user didn't make (a resize or font change moves the viewport) never stops a panel
+following the live screen, while a wheel scroll up survives a resize until **Live** is pressed.
 Not covered: iOS keyboard behaviour.
 
 It needs `playwright-core` and a Chromium, which are not dependencies of the project. The simplest

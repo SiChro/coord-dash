@@ -87,6 +87,7 @@ async function settled(page, n) {
   } catch (e) {
     const state = await page.evaluate(() => [...document.querySelectorAll('.panel')].map((p) =>
       `${p.dataset.name} label=${p.querySelector('.state').textContent} want=${p.dataset.want} visible=${p.offsetParent !== null} ` +
+      `scrolledUp=${!p.querySelector('.live').hidden} ` +
       `last rows: ${[...p.querySelectorAll('.xterm-rows > div')].slice(-2).map((d) => JSON.stringify(d.textContent.trim().slice(-40))).join(' / ')}`));
     throw new Error(`panels never settled: ${state.join(' | ')}`, { cause: e });
   }
@@ -460,6 +461,57 @@ test('stacked 900 (tablet, touch): drag the divider between rows, double-tap res
     await settled(page, 2);
     const r2 = await panelRects(page);
     assert.ok(Math.abs(r2[0].height - r2[1].height) < 2, `double-tap: equal heights (${r2[0].height}, ${r2[1].height})`);
+    assert.deepEqual(page.errors, []);
+  } finally { await ctx.close(); }
+});
+
+// A resize or font change moves xterm's viewport without the user (the browser fires a late
+// scroll event). That used to stop a panel from following: it froze on old rows after a divider
+// drag (the stacked test above failed about one run in six). Moving the viewport by script
+// reproduces it every time.
+test('a scroll without user input keeps a panel live; a wheel scroll up survives a resize', async () => {
+  const { ctx, page } = await open(1280, 800);
+  try {
+    const left = '.panel[data-name="left"]';
+    const state = () => page.evaluate((sel) => {
+      const p = document.querySelector(sel);
+      const want = p.dataset.want;
+      return {
+        scrolledUp: !p.querySelector('.live').hidden,
+        label: p.querySelector('.state').textContent.replace('×', 'x'),
+        want,
+        sizeShown: [...p.querySelectorAll('.xterm-rows > div')].some((d) => d.textContent.includes(`size ${want}`)),
+      };
+    }, left);
+    // 1. layout-style scroll: the viewport jumps to the top of the scrollback, nobody touched it
+    await page.evaluate((sel) => { document.querySelector(`${sel} .xterm-viewport`).scrollTop = 0; }, left);
+    await page.waitForTimeout(400);
+    let s = await state();
+    assert.equal(s.scrolledUp, false, 'a scroll without user input does not stop the panel following');
+    assert.ok(s.sizeShown, 'the live screen is in view');
+    // 2. the user scrolls up with the wheel: the panel stops following
+    const t = await rectOf(page, `${left} .xterm-screen`);
+    await page.mouse.move(t.left + 40, t.top + 40);
+    await page.mouse.wheel(0, -600);
+    await page.waitForTimeout(1200); // longer than USER_SCROLL_MS in public/app.js
+    assert.equal((await state()).scrolledUp, true, 'wheel up: scrolled up, Live button shown');
+    // 3. a resize (new frame with fewer rows) arrives well after the input: still scrolled up.
+    // Height only: a width change makes the server send the whole history again (reset), and a
+    // reset always starts live.
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await page.waitForFunction((sel) => {
+      const p = document.querySelector(sel);
+      return p.dataset.want === p.querySelector('.state').textContent.replace('×', 'x');
+    }, left, { timeout: 15000 });
+    await page.waitForTimeout(1000);
+    s = await state();
+    assert.equal(s.scrolledUp, true, "a resize does not take the user's scroll position away");
+    // 4. Live brings it back
+    await page.click(`${left} .live`);
+    await page.waitForTimeout(400);
+    s = await state();
+    assert.equal(s.scrolledUp, false, 'Live: following again');
+    assert.ok(s.sizeShown, 'Live: the live screen is in view');
     assert.deepEqual(page.errors, []);
   } finally { await ctx.close(); }
 });
